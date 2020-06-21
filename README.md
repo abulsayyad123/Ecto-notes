@@ -30,8 +30,9 @@ config :music_db, MusicDB.Repo,
 url: "ecto://postgres:postgres@localhost/music_db"
 
 
-### Playing with Ecto: ###
+## Playing with Ecto: ##
 
+### INSERT OPERATION ###
 To *insert* record in database:
 ```
 alias MusicDB.Repo
@@ -54,24 +55,26 @@ Repo.insert_all("artists",
 %{name: "Art Blakey", inserted_at: DateTime.utc_now()}])
 #=> {2, nil}
 ```
-
+### UPDATE OPERATION ###
 To *update* records, we can use the update_all function:
 
 Repo.update_all("artists", set: [updated_at: DateTime.utc_now()])
 #=> {1, nil}
 
 `set` tells you which column of the table you want to change.`update_all` provides some other options for making changes:
-• inc: This increments the given field by the given value; we can decrement by supplying a negative number
-• push: This works on columns containing an array, and pushes the given value onto the end of the array
-• pull: This also works on array columns—it removes the given value from the array
+
+* inc: This increments the given field by the given value; we can decrement by supplying a negative number
+* push: This works on columns containing an array, and pushes the given value onto the end of the array
+* pull: This also works on array columns—it removes the given value from the array
 
 Refer this for other options: https://hexdocs.pm/ecto/Ecto.Query.html#update/3-operators
 
+### DELETE OPERATION ###
 For Deleting bunch of records:
 `Repo.delete_all("tracks")`
 #=> {1, nil}
 
-Getting values back:
+### Getting values back: ###
 The standard return value for the *_all functions is {some_number, nil}. The first field is the number of rows effected and second is return value. Right now , we are not returning anything that it is nil.
 
 The returning option lets us specify any values we’d like returned to us after the operation completes. This option takes a list of the field names we’re interested in, and Ecto returns the values as a map. Note that this option works in Postgres, but not in MySQL.
@@ -86,12 +89,12 @@ Repo.insert_all("artists", [%{name: "Max Roach"},
 ***This option works with any of the *all functions.***
 
 
-###Executing queries:###
+### Executing queries: ###
 The Ecto.Adapters.SQL module has a function called query that will take good old-fashioned SQL:
 ```
 Ecto.Adapters.SQL.query(Repo, "select * from artists where id=1")
 ```
-VV Important:
+*VV Important:*
 
 Ecto also makes this function available from Repo—this shortcut doesn’t appear in the documentation for Repo but it’s simpler to call:
 `Repo.query("select * from artists where id=1")`
