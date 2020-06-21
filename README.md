@@ -1,5 +1,25 @@
 # Ecto-notes
 
+### Ecto Modules: ###
+
+* REPO: *
+Repo is the heart of Ecto and acts as a kind of proxy for your database. All communication to and from the database goes through Repo.
+
+* Query: *
+The Query module contains Ecto’s powerful but elegant API for writing queries.
+
+* Schema *
+A schema is a kind of map, from database tables to your code. The Schema module contains tools to help you create these maps with ease. The best part is Ecto schemas are very flexible—you’re not locked into a simple one-to-one relationship between your tables and your structs.
+
+* Changeset: *
+Many database layers have one or two kinds of change. Ecto understands that one size does not fit all, so it provides the changeset: a data structure that captures all aspects of making a change to your data. The Changeset module provides functions for creating and manipulating changesets, allowing you to structure your changes in a way that is safe, flexible, and easy to test.
+
+* Multi: *
+You often need to coordinate several database changes simultaneously, where they must all succeed or fail together. The transaction function works great for simple cases, but the Multi module can handle even very complex cases while still keeping your code clean and testable.
+
+* Migration: *
+Change happens. As your app grows and evolves, so too must the underlying database. Changing the structure of a database can be tricky, particularly when multiple developers are involved, but Migration helps you coordinate these changes so that everyone stays in sync.
+
 ### Repo Module: ###
 The Repo module is the heart of Ecto. Repo contains a lot of functions you’d expect: get, insert, update, delete, and the like. You never call these functions directly. Instead, you create your own Repo module that lives in your app’s codebase,then integrate Ecto.
 Repo’s functions with Elixir’s use macro. The otp_app option is required. It tells Ecto where to find the configuration values it needs to connect to your database.
@@ -102,3 +122,31 @@ Ecto also makes this function available from Repo—this shortcut doesn’t appe
 SQL in string form can get pretty clumsy and even unsafe, particularly as
 you start adding dynamic values. However, this approach can be useful when
 debugging, or if you want to run a quick SQL statement within an IEx session.
+
+
+### Customizing your Repo ###
+
+There may be times when you find yourself calling some particular Repo functions over and over with the same set of options, or maybe you’d like to add some behavior that Repo doesn’t currently have. Fortunately, the Repo module you created is a plain old Elixir module just like any other, so it’s possible to add customized behavior just by adding more functions (Here `Repo` module we are talking about is lib/music_db/repo.ex).
+Suppose we want to do lots of counting in our app on different models. Getting the number of records in a table is fairly easy with Repo’s aggregate.
+
+`Repo.aggregate("albums", :count, :id)`
+`aggregate` function gives us access to a number of aggregate functions supplied by the underlying database: count, avg, min, max, sum, and so on
+
+This function is simple enough, but if we know we’ll be doing this often and want to be truly lazy, we can add a custom count function to our Repo module to save some typing. In the sample project, open lib/music_db/repo.ex and add this function:
+```elixir
+def count(table) do
+  aggregate(table, :count, :id)
+end
+```
+
+Another useful customization is adding an implementation of the init callback. This runs when Ecto first initializes and allows you to add or override configuration parameters.
+
+
+V.V.V.Important:
+
+When loading a database connection URL from an environment variable. The init callback is where you’d want to do that:
+```
+def init(_, opts) do
+  {:ok, Keyword.put(opts, :url, System.get_env("DATABASE_URL"))}
+end
+```
