@@ -1,6 +1,6 @@
 # Ecto-notes
 
-### Ecto Modules: ###
+###Ecto Modules: ###
 
 * REPO: *
 Repo is the heart of Ecto and acts as a kind of proxy for your database. All communication to and from the database goes through Repo.
@@ -149,4 +149,161 @@ When loading a database connection URL from an environment variable. The init ca
 def init(_, opts) do
   {:ok, Keyword.put(opts, :url, System.get_env("DATABASE_URL"))}
 end
+```
+
+
+# Ecto Query: #
+
+`To make these command run import *Ecto.query* and to execte run *Repo.all(q)*`
+
+If we want to take dynamic value from user to make the query we could directly interpolate it in the query. But, it will throw error.
+```
+artist_name = "Bill Evans"
+q = from "artists", where: [name: artist_name], select: [:id, :name]
+```
+** (Ecto.Query.CompileError) variable `artist_name` is not a valid query
+expression. Variables need to be explicitly interpolated in queries with ^
+
+Explanation for error:  Ecto’s query syntax is implemented using macros, so the rules are a little different. We need to alert the macro that we’re using an expression that needs evaluating by adding ^ .
+
+Correct Syntax:
+```
+artist_name = "Bill Evans"
+
+```
+
+***  But if you’ve got a more complex expression, you need to wrap it in parentheses, like this: ^("Bill" <> " Evans") ***
+
+
+### Query Bindings ###
+We can make a simple `where` query as below
+` q = from "artists", where: [name: "Bill Evans"], select: [:id, :name] `
+here `where` checks if equality of `Bill Evans` with `name` variable. But we cannot use `===` operator as below.
+` q = from "artists", where: name == "Bill Evans", select: [:id, :name]`
+Because Ecto can’t easily figure out what name is supposed to be. A variable? A function or macro defined elsewhere? We need a way to tell Ecto that name is a column in our artists table. We can do this with query bindings.
+
+You create a query binding by using `in` along with the usual `from`. It works a lot like table aliases in SQL and effectively gives you a variable for referring to your table throughout your query. Our problematic query can be rewritten like this:
+`q = from a in "artists", where: a.name == "Bill Evans", select: [:id, :name]`
+
+### Query Expressions ###
+Ecto provides a long list of functions that you can use with where and other query keywords. These are documented in detail in the Ecto.Query.API module, but here are a few examples to give you an idea of what’s possible:
+
+```
+# like statements
+q = from a in "artists", where: like(a.name, "Miles%"), select: [:id, :name]
+# checking for null
+q = from a in "artists", where: is_nil(a.name), select: [:id, :name]
+# checking for not null
+q = from a in "artists", where: not is_nil(a.name), select: [:id, :name]
+# date comparison - this finds artists added more than 1 year ago
+q = from a in "artists", where: a.inserted_at < ago(1, "year"),
+select: [:id, :name]
+```
+
+### Inserting Raw SQL ###
+There might be cases where your database exposes some specialized function that Ecto doesn’t support. The fragment function
+gives you an escape hatch for writing bits of raw SQL that get inserted verbatim into the query.
+Here we use fragment so we can call the Postgres lower function:
+```
+q = from a in "artists",
+  where: fragment("lower(?)", a.name) == "miles davis",
+  select: [:id, :name]
+```
+
+
+### To see generated raw sql ###
+To see the raw sql generated you can use `Ecto.Adapters.SQL.to_sql`:
+```
+Ecto.Adapters.SQL.to_sql(:all, Repo, q)
+```
+
+If this is something you think you’ll be using a lot, you can extend Ecto’s query API by adding your own macro and importing it into your module:
+
+```
+defmacro lower(arg) do
+  quote do: fragment("lower(?)", unquote(arg))
+end
+```
+Then the query could be rewritten like this:
+```
+q = from a in "artists", where: lower(a.name) == "miles davis",select: [:id, :name]
+```
+
+
+
+### Combining Results with union and union_all###
+
+To combine results of different queries, SQL provides the UNION operator. For this to work, the two queries need to have result sets with the same column names and data type.
+
+```
+tracks_query = from t in "tracks", select: t.title
+union_query = from a in "albums", select: a.title, union: ^tracks_query
+Repo.all(union_query)
+```
+
+** INTERSECT and EXCEPT **
+
+INTERSECT:
+Ecto supports INTERSECT and EXCEPT, and the answer is yes. We can use intersect: to get a list of album titles that are also track titles:
+```
+tracks_query = from t in "tracks", select: t.title
+intersect_query = from a in "albums", select: a.title, intersect: ^tracks_query
+```
+
+EXCEPT:
+```
+tracks_query = from t in "tracks", select: t.title
+except_query = from a in "albums", select: a.title,
+  except: ^tracks_query
+```
+
+### Ordering and Grouping ###
+The order by and group by expressions in SQL are available in Ecto via the order_by and group_by keywords.
+
+** order_by:**
+```
+q = from a in "artists", select: [a.name], order_by: a.name
+Repo.all(q)
+```
+It is by default `ascending`. If you want to do descending, you can specify that.
+```
+q = from a in "artists", select: [a.name], order_by: [desc: a.name]
+Repo.all(q)
+```
+
+Specifying multiple columns for order_by
+```
+q = from t in "tracks", select: [t.album_id, t.title, t.index], order_by: [t.album_id, t.index]
+Repo.all(q)
+```
+
+Multiple `order_by` with combinations of `asc` and `desc`
+```
+q = from t in "tracks", select: [t.album_id, t.title, t.index], order_by: [desc: t.album_id, asc: t.index]
+Repo.all(q)
+```
+
+*** VV. Important: ***
+Different database have different importance for NULL value while using `order_by`. You can specify the ordering using
+`:asc_nulls_last, :asc_nulls_first, :desc_nulls_last, or:desc_nulls_first `.
+
+```
+q = from t in "tracks", select: [t.album_id, t.title, t.index],
+order_by: [desc: t.album_id, asc_nulls_first: t.index]
+Repo.all(q)
+```
+
+** group_by: **
+```
+q = from t in "tracks", select: [t.album_id, sum(t.duration)],
+group_by: t.album_id
+```
+
+Suppose we wwanted to refine this further and only return the albums whose total length is longer than one hour (3600 seconds). A where clause won’t help us here.
+We’ll take the same query and add having to include only the results that have a total duration longer than 3600 seconds:
+```
+q = from t in "tracks", select: [t.album_id, sum(t.duration)],
+group_by: t.album_id,
+having: sum(t.duration) > 3600
+Repo.all(q)
 ```
