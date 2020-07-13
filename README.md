@@ -1,6 +1,6 @@
 # Ecto-notes
 
-###Ecto Modules: ###
+### Ecto Modules: ###
 
 * REPO: *
 Repo is the heart of Ecto and acts as a kind of proxy for your database. All communication to and from the database goes through Repo.
