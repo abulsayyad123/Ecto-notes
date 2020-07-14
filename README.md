@@ -299,7 +299,7 @@ q = from t in "tracks", select: [t.album_id, sum(t.duration)],
 group_by: t.album_id
 ```
 
-Suppose we wwanted to refine this further and only return the albums whose total length is longer than one hour (3600 seconds). A where clause won’t help us here.
+Suppose we wanted to refine this further and only return the albums whose total length is longer than one hour (3600 seconds). A where clause won’t help us here.
 We’ll take the same query and add having to include only the results that have a total duration longer than 3600 seconds:
 ```
 q = from t in "tracks", select: [t.album_id, sum(t.duration)],
@@ -307,3 +307,116 @@ group_by: t.album_id,
 having: sum(t.duration) > 3600
 Repo.all(q)
 ```
+
+### Join ###
+To create the join, we’ll use the join keyword to specify the table, and the on keyword to specify the column.
+```
+q = from t in "tracks", join: a in "albums", on: t.album_id == a.id
+```
+
+We can add a `where` clause to find the very long tracks:
+
+```
+q = from t in "tracks",
+  join: a in "albums", on: t.album_id == a.id,
+  where: t.duration > 900,
+  select: [a.title, t.title]
+Repo.all(q)
+
+#=> [["Cookin' At The Plugged Nickel", "No Blues"],
+#=> ["Cookin' At The Plugged Nickel", "If I Were A Bell"]]
+```
+
+This works, but the result is a little hard to read. We can clean things up by changing our select statement. Instead of expressing the select as a list of columns, we can provide a map. Ecto will then return the result as list of maps, each
+using the structure we provide:
+
+```
+q = from t in "tracks",
+  join: a in "albums", on: t.album_id == a.id,
+  where: t.duration > 900,
+  select: %{album: a.title, track: t.title}
+Repo.all(q)
+#=> [%{album: "Cookin' At The Plugged Nickel", track: "No Blues"},
+#=> %{album: "Cookin' At The Plugged Nickel", track: "If I Were A Bell"}]
+```
+
+** By default, the join macro performs an inner join, but other flavors of joins are
+available as well: left_join, right_join, cross_join, and full_join. **
+
+If we want to join on multiple tables. Elixir’s keyword lists allow you to specify the same keyword more than once.More joins is simply a matter of adding more join and on options.
+
+```
+q = from t in "tracks",
+  join: a in "albums", on: t.album_id == a.id,  # Notice here
+  join: ar in "artists", on: a.artist_id == ar.id, # Notice here
+  where: t.duration > 900,
+  select: %{album: a.title, track: t.title, artist: ar.name}
+Repo.all(q)
+#=> [%{album: "Cookin' At The Plugged Nickel", artist: "Miles Davis",
+#=> track: "If I Were A Bell"},
+#=> %{album: "Cookin' At The Plugged Nickel", artist: "Miles Davis",
+#=> track: "No Blues"}]
+```
+
+### Composing Queries (Composibility) ###
+
+Ecto allows us to break up large queries into smaller pieces that can be reassembled at will. This makes them easier to work with, and allows you to re-use parts of queries in more than one place.
+
+How to write common query (Queryable) ?
+
+*VV.Impo*: We’ve always been using "strings" on the right side of the in expression (for example, from a in "albums").  That "string" has always represented the name of a table in our database. But the in expression is actually looking for any data type that has implemented the Ecto.Queryable protocol.
+
+The "Ecto.Queryable" protocol specifies only one function that needs to be implemented: to_query. So you can think of Queryable as “a thing that can be queried.”
+
+
+#### Extracting Parts of Queries ####
+Problem:
+
+```
+#First Query
+q = from a in "albums",
+  join: ar in "artists", on: a.artist_id == ar.id,
+  where: ar.name == "Miles Davis",
+  select: [a.title]
+Repo.all(q)
+#=> [["Cookin' At The Plugged Nickel"], ["Kind Of Blue"]]
+
+#Second Query
+q = from a in "albums",
+  join: ar in "artists", on: a.artist_id == ar.id,
+  join: t in "tracks", on: t.album_id == a.id,
+  where: ar.name == "Miles Davis",
+  select: [t.title]
+Repo.all(q)
+```
+These both query is almost identical. Except in second query we have extra `join` with different `select` statement.
+
+First, let’s extract out the parts that are identical into a separate Query. Both queries refer to albums by Miles Davis, so we can break that logic out into its own query:
+
+```
+albums_by_miles = from a in "albums",
+  join: ar in "artists", on: a.artist_id == ar.id,
+  where: ar.name == "Miles Davis"
+```
+This is not complete query, it’s missing the select expression.
+
+To make our first query that just fetches the album titles, we use our "albums_by_miles" query, and add select:
+```
+album_query = from a in albums_by_miles, select: a.title
+#=> #Ecto.Query<from a0 in "albums", join: a1 in "artists",
+#=> on: a0.artist_id == a1.id, where: a1.name == "Miles Davis",
+#=> select: a0.title>
+```
+Here instead of passing table name after `in` we passed `other query` (which is Queryable).  Ecto takes that original query, then adds the select we’ve provided here.
+
+What happens to the query bindings when a query is built up like below.
+```
+albums_by_miles = from a in "albums",
+  join: ar in "artists", on: a.artist_id == ar.id,
+  where: ar.name == "Miles Davis"
+```
+We defined the a binding first, at the beginning of the from call, then later defined the ar binding in the join. This will be the order that Ecto will expect if the query is used again.
+As it happens, we don’t need the artists binding in the second query, but if we did, that binding would have to appear after the albums binding:
+`album_query = from [a,ar] in albums_by_miles, select: a.title`
+This wouldn’t work:
+`album_query = from [ar,a] in albums_by_miles, select: a.title`
