@@ -417,6 +417,9 @@ albums_by_miles = from a in "albums",
 ```
 We defined the a binding first, at the beginning of the from call, then later defined the ar binding in the join. This will be the order that Ecto will expect if the query is used again.
 As it happens, we don’t need the artists binding in the second query, but if we did, that binding would have to appear after the albums binding:
+
 `album_query = from [a,ar] in albums_by_miles, select: a.title`
+
 This wouldn’t work:
+
 `album_query = from [ar,a] in albums_by_miles, select: a.title`
