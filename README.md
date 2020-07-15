@@ -417,9 +417,58 @@ albums_by_miles = from a in "albums",
 ```
 We defined the a binding first, at the beginning of the from call, then later defined the ar binding in the join. This will be the order that Ecto will expect if the query is used again.
 As it happens, we don’t need the artists binding in the second query, but if we did, that binding would have to appear after the albums binding:
-
 `album_query = from [a,ar] in albums_by_miles, select: a.title`
-
 This wouldn’t work:
-
 `album_query = from [ar,a] in albums_by_miles, select: a.title`
+
+V.Important:
+The important thing to remember is that when composing queries, bindingorder is preserved.
+
+Now, after extracting common code, the new query becomes.
+
+Putting above changes all together, it looks like this:
+```
+#Common code
+albums_by_miles = from a in "albums",
+  join: ar in "artists", on: a.artist_id == ar.id,
+  where: ar.name == "Miles Davis"
+
+#First Query using common query "album_by_miles"
+album_query = from a in albums_by_miles, select: a.title
+miles_albums = Repo.all(album_query)
+
+#Second Query using common query "album_by_miles"
+track_query = from a in albums_by_miles,
+join: t in "tracks", on: a.id == t.album_id,
+select: t.title
+miles_tracks = Repo.all(track_query)
+```
+
+#### Working with Named Bindings ####
+With a more complex query that’s spread over a wider area, it could be tough to remember which binding needs to go where.
+Ecto allows you to assign specific names to bindings that it saves throughout the life of the query. Let’s look at how this works.
+
+To create a named binding, you use the as: keyword. You can add this to the from call, or to any of the join options. Here’s how we could rewrite our last query with named bindings:
+```
+albums_by_miles = from a in "albums", as: :albums,
+  join: ar in "artists", as: :artists,
+  on: a.artist_id == ar.id, where: ar.name == "Miles Davis"
+```
+The as: needs to come immediately after from and join: and you must use atoms for binding names—strings are not allowed.
+
+To use the name binding:
+
+`album_query = from [albums: a] in albums_by_miles, select: a.title`.
+
+`album_query = from [artists: ar, albums: a] in albums_by_miles, select: [a.title, ar.name]`
+
+Here we listed the artists binding first, even though it appears second in our original. With positional bindings, this would break our query. But with named bindings, we can specify the bindings in any order.
+
+If you need to find out if a given query has a named binding, you can use the `has_named_binding?` function:
+```
+albums_by_miles = from a in "albums", as: :albums,
+  join: ar in "artists", as: :artists,
+  on: a.artist_id == ar.id, where: ar.name == "Miles Davis"
+has_named_binding?(albums_by_miles, :albums)
+#=> true
+```
