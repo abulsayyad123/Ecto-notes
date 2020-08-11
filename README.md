@@ -2,22 +2,22 @@
 
 ### Ecto Modules: ###
 
-* REPO: *
+* REPO:
 Repo is the heart of Ecto and acts as a kind of proxy for your database. All communication to and from the database goes through Repo.
 
-* Query: *
+* Query:
 The Query module contains Ecto’s powerful but elegant API for writing queries.
 
-* Schema *
+* Schema:
 A schema is a kind of map, from database tables to your code. The Schema module contains tools to help you create these maps with ease. The best part is Ecto schemas are very flexible—you’re not locked into a simple one-to-one relationship between your tables and your structs.
 
-* Changeset: *
+* Changeset:
 Many database layers have one or two kinds of change. Ecto understands that one size does not fit all, so it provides the changeset: a data structure that captures all aspects of making a change to your data. The Changeset module provides functions for creating and manipulating changesets, allowing you to structure your changes in a way that is safe, flexible, and easy to test.
 
-* Multi: *
+* Multi:
 You often need to coordinate several database changes simultaneously, where they must all succeed or fail together. The transaction function works great for simple cases, but the Multi module can handle even very complex cases while still keeping your code clean and testable.
 
-* Migration: *
+* Migration:
 Change happens. As your app grows and evolves, so too must the underlying database. Changing the structure of a database can be tricky, particularly when multiple developers are involved, but Migration helps you coordinate these changes so that everyone stays in sync.
 
 ### Repo Module: ###
