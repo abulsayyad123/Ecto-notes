@@ -169,7 +169,7 @@ Explanation for error:  Ecto’s query syntax is implemented using macros, so th
 Correct Syntax:
 ```
 artist_name = "Bill Evans"
-
+q = from "artists", where: [name: ^artist_name], select: [:id, :name]
 ```
 
 ***  But if you’ve got a more complex expression, you need to wrap it in parentheses, like this: ^("Bill" <> " Evans") ***
