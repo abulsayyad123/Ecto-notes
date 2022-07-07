@@ -472,3 +472,17 @@ albums_by_miles = from a in "albums", as: :albums,
 has_named_binding?(albums_by_miles, :albums)
 #=> true
 ```
+
+
+
+
+
+### Not Ecto 
+=> About Joins:
+- Joins produces value by merging together rows from different related tables.
+- Use a join(most of the times) when you are asked to find data from multiple resources.
+
+=> Aggregation:
+- Looks at many rows and calculates a single value.
+- Words like "most", "average", "least" are sign that you need to use aggregation.
+
