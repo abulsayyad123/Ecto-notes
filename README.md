@@ -486,3 +486,11 @@ has_named_binding?(albums_by_miles, :albums)
 - Looks at many rows and calculates a single value.
 - Words like "most", "average", "least" are sign that you need to use aggregation.
 
+
+=> Notes on Join:
+- Table order between `FROM` and `JOIN` frequently makes a difference.
+- We must give a context if column names collide
+- Tables can be renamed using `AS` keyword.
+- There are few kinds of JOINS.
+
+
